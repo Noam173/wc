@@ -47,10 +47,17 @@ fn file_path(args: &Args) -> std::io::Result<()> {
         chars += c;
     }
     if args.files.len() != 1 {
+        let show_all = !args.words && !args.lines && !args.chars;
         println!("===== TOTAL =====");
-        println!("Total lines: {lines}");
-        println!("Total words: {words}");
-        println!("Total chars: {chars}");
+        if args.lines || show_all {
+            println!("Total lines: {}", lines);
+        }
+        if args.words || show_all {
+            println!("Total words: {}", words);
+        }
+        if args.chars || show_all {
+            println!("Total chars: {}", chars);
+        }
     };
     Ok(())
 }
@@ -62,13 +69,13 @@ fn count(file: &str, args: &Args) -> (usize, usize, usize) {
     let show_all = !args.words && !args.lines && !args.chars;
 
     if args.lines || show_all {
-        println!("lines: {lines}");
+        println!("lines: {}", lines);
     }
     if args.words || show_all {
-        println!("words: {words}");
+        println!("words: {}", words);
     }
     if args.chars || show_all {
-        println!("chars: {chars}");
+        println!("chars: {}", chars);
     }
     (lines, words, chars)
 }
