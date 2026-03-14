@@ -1,11 +1,7 @@
-#![allow(dead_code, unused_imports)]
 use clap::Parser;
 use std::io::{IsTerminal, stdin};
 use std::process::exit;
-use std::{
-    fs::read_to_string,
-    io::{BufRead, Error, Read},
-};
+use std::{fs::read_to_string, io::Read};
 #[derive(Debug, Parser)]
 struct Args {
     /// pass input as pipline or specify a file(s) path
@@ -24,29 +20,37 @@ struct Args {
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
     if args.files.is_empty() {
-        let mut file = String::new();
-        if !stdin().is_terminal() {
-            stdin().read_to_string(&mut file)?;
-            count(&file, &args);
-        } else {
-            exit(1);
-        }
+        tty_input(&args)?;
     } else {
-        let (mut lines, mut words, mut chars) = (0, 0, 0);
-        for i in &args.files {
-            let file = read_to_string(i)?;
-            println!("===== {} =====", i);
-            let (l, w, c) = count(&file, &args);
-            lines += l;
-            words += w;
-            chars += c;
-        }
-        if args.files.len() != 1 {
-            println!("===== TOTAL =====");
-            println!("Total lines: {lines}");
-            println!("Total words: {words}");
-            println!("Total chars: {chars}");
-        }
+        file_path(&args)?;
+    };
+    Ok(())
+}
+fn tty_input(args: &Args) -> std::io::Result<()> {
+    let mut file = String::new();
+    if !stdin().is_terminal() {
+        stdin().read_to_string(&mut file)?;
+        count(&file, &args);
+    } else {
+        exit(1);
+    };
+    Ok(())
+}
+fn file_path(args: &Args) -> std::io::Result<()> {
+    let (mut lines, mut words, mut chars) = (0, 0, 0);
+    for i in &args.files {
+        let file = read_to_string(i)?;
+        println!("===== {} =====", i);
+        let (l, w, c) = count(&file, &args);
+        lines += l;
+        words += w;
+        chars += c;
+    }
+    if args.files.len() != 1 {
+        println!("===== TOTAL =====");
+        println!("Total lines: {lines}");
+        println!("Total words: {words}");
+        println!("Total chars: {chars}");
     };
     Ok(())
 }
