@@ -40,7 +40,7 @@ fn file_path(args: &Args) -> std::io::Result<()> {
     let (mut lines, mut words, mut chars) = (0, 0, 0);
     for i in &args.files {
         let file = read_to_string(i)?;
-        println!("===== {} =====", i);
+        println!("== {} ==", i);
         let (l, w, c) = count(&file, &args);
         lines += l;
         words += w;
@@ -48,7 +48,7 @@ fn file_path(args: &Args) -> std::io::Result<()> {
     }
     if args.files.len() != 1 {
         let show_all = !args.words && !args.lines && !args.chars;
-        println!("===== TOTAL =====");
+        println!("== TOTAL ==");
         if args.lines || show_all {
             println!("Total lines: {}", lines);
         }
