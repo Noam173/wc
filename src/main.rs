@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::io::{IsTerminal, stdin};
+use std::io::{IsTerminal, Result, stdin};
 use std::process::exit;
 use std::{fs::read_to_string, io::Read};
 #[derive(Parser)]
@@ -17,26 +17,30 @@ struct Args {
     chars: bool,
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
-    if args.files.is_empty() {
-        tty_input(&args)?;
-    } else {
-        file_path(&args)?;
-    };
+    match args.files.is_empty() && stdin().is_terminal() {
+        false => {
+            if args.files.is_empty() {
+                tty_input(&args)?;
+            } else {
+                file_path(&args)?;
+            };
+        }
+        true => {
+            eprintln!("didnt recive any input");
+            exit(1);
+        }
+    }
     Ok(())
 }
-fn tty_input(args: &Args) -> std::io::Result<()> {
+fn tty_input(args: &Args) -> Result<()> {
     let mut file = String::new();
-    if !stdin().is_terminal() {
-        stdin().read_to_string(&mut file)?;
-        count(&file, args);
-    } else {
-        exit(1);
-    };
+    stdin().read_to_string(&mut file)?;
+    count(&file, args);
     Ok(())
 }
-fn file_path(args: &Args) -> std::io::Result<()> {
+fn file_path(args: &Args) -> Result<()> {
     let (mut lines, mut words, mut chars) = (0, 0, 0);
     for i in &args.files {
         let file = read_to_string(i)?;
