@@ -2,7 +2,7 @@ use clap::Parser;
 use std::io::{IsTerminal, stdin};
 use std::process::exit;
 use std::{fs::read_to_string, io::Read};
-#[derive(Debug, Parser)]
+#[derive(Parser)]
 struct Args {
     /// pass input as pipline or specify a file(s) path
     files: Vec<String>,
@@ -30,7 +30,7 @@ fn tty_input(args: &Args) -> std::io::Result<()> {
     let mut file = String::new();
     if !stdin().is_terminal() {
         stdin().read_to_string(&mut file)?;
-        count(&file, &args);
+        count(&file, args);
     } else {
         exit(1);
     };
@@ -41,7 +41,7 @@ fn file_path(args: &Args) -> std::io::Result<()> {
     for i in &args.files {
         let file = read_to_string(i)?;
         println!("== {} ==", i);
-        let (l, w, c) = count(&file, &args);
+        let (l, w, c) = count(&file, args);
         lines += l;
         words += w;
         chars += c;
