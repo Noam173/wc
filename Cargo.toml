@@ -7,7 +7,7 @@ edition = "2024"
 codegen-units = 1
 strip = true
 panic = "abort"
-lto = "fat"
+lto = true
 
 [dependencies]
 anyhow = "1.0.102"
