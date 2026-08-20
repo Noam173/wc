@@ -1,85 +1,61 @@
+use anyhow::Result;
 use clap::Parser;
-use std::io::{IsTerminal, Result, stdin};
-use std::process::exit;
-use std::{fs::read_to_string, io::Read};
-#[derive(Parser)]
+use memmap2::Mmap;
+use rayon::{iter::ParallelIterator, slice::ParallelSlice};
+use std::fs::File;
+const MB: usize = 1024usize.pow(2);
+#[derive(Debug, Parser)]
 struct Args {
-    /// pass input as pipline or specify a file(s) path
     files: Vec<String>,
-    /// count words
-    #[arg(short, long)]
-    words: bool,
-    /// count lines
     #[arg(short, long)]
     lines: bool,
-    /// count chars
+    #[arg(short, long)]
+    words: bool,
     #[arg(short, long)]
     chars: bool,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    match args.files.is_empty() && stdin().is_terminal() {
-        false => {
-            if args.files.is_empty() {
-                tty_input(&args)?;
-            } else {
-                file_path(&args)?;
-            };
+    let all = !args.lines && !args.words && !args.chars;
+    for path in args.files.iter() {
+        let file = File::open(path)?;
+        let map = unsafe { Mmap::map(&file) }?;
+        let size = map.len();
+        if size < 10 * MB {
+            non_parallel(&args, &map);
+        } else {
+            parallel(&args, &map);
         }
-        true => {
-            eprintln!("didnt recive any input");
-            exit(1);
+        if args.chars || all {
+            print!("{} ", size)
         }
+        println!("{}", path);
     }
     Ok(())
 }
-fn tty_input(args: &Args) -> Result<()> {
-    let mut file = String::new();
-    stdin().read_to_string(&mut file)?;
-    count(&file, args);
-    Ok(())
-}
-fn file_path(args: &Args) -> Result<()> {
-    let (mut lines, mut words, mut chars) = (0, 0, 0);
-    for i in &args.files {
-        let file = read_to_string(i)?;
-        println!("== {} ==", i);
-        let (l, w, c) = count(&file, args);
-        lines += l;
-        words += w;
-        chars += c;
+fn parallel(args: &Args, map: &[u8]) {
+    let all = !args.lines && !args.words && !args.chars;
+    let base = map.par_split_inclusive(|b| *b == b'\n');
+    if args.lines || all {
+        print!("{} ", base.clone().count());
     }
-    if args.files.len() != 1 {
-        let show_all = !args.words && !args.lines && !args.chars;
-        println!("== TOTAL ==");
-        if args.lines || show_all {
-            println!("Total lines: {}", lines);
-        }
-        if args.words || show_all {
-            println!("Total words: {}", words);
-        }
-        if args.chars || show_all {
-            println!("Total chars: {}", chars);
-        }
-    };
-    Ok(())
+    if args.words || all {
+        let w = base
+            .fold(|| 0, |acc, word| acc + word.split(|b| *b == b' ').count())
+            .reduce(|| 0, |acc, count| acc + count);
+        print!("{} ", w);
+    }
 }
-fn count(file: &str, args: &Args) -> (usize, usize, usize) {
-    let lines = file.lines().count();
-    let words = file.split_ascii_whitespace().count();
-    let chars = file.chars().count();
+fn non_parallel(args: &Args, map: &[u8]) {
+    let all = !args.lines && !args.words && !args.chars;
+    let base = map.split_inclusive(|b| *b == b'\n');
+    if args.lines || all {
+        print!("{} ", base.clone().count());
+    }
+    if args.words || all {
+        let w = base.fold(0, |acc, word| acc + word.split(|b| *b == b' ').count());
+        print!("{} ", w);
+    }
+}
 
-    let show_all = !args.words && !args.lines && !args.chars;
-
-    if args.lines || show_all {
-        println!("lines: {}", lines);
-    }
-    if args.words || show_all {
-        println!("words: {}", words);
-    }
-    if args.chars || show_all {
-        println!("chars: {}", chars);
-    }
-    (lines, words, chars)
-}
