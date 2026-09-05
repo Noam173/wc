@@ -14,48 +14,55 @@ struct Args {
     #[arg(short, long)]
     chars: bool,
 }
-
+enum Mode {
+    NonParallel,
+    Parallel,
+}
 fn main() -> Result<()> {
+    let start = std::time::Instant::now();
     let args = Args::parse();
+    let mut mode = Mode::NonParallel;
     let all = !args.lines && !args.words && !args.chars;
-    for path in args.files.iter() {
+    for path in &args.files {
         let file = File::open(path)?;
         let map = unsafe { Mmap::map(&file) }?;
         let size = map.len();
-        if size < 10 * MB {
-            non_parallel(&args, &map);
-        } else {
-            parallel(&args, &map);
+        if size > 10 * MB {
+            mode = Mode::Parallel;
         }
+        count(&args, &map, &mode);
         if args.chars || all {
-            print!("{} ", size)
+            print!("{size} ");
         }
-        println!("{}", path);
+        println!("{path}");
     }
+    println!("{:?}", start.elapsed());
     Ok(())
 }
-fn parallel(args: &Args, map: &[u8]) {
-    let all = !args.lines && !args.words && !args.chars;
-    let base = map.par_split_inclusive(|b| *b == b'\n');
-    if args.lines || all {
-        print!("{} ", base.clone().count());
-    }
-    if args.words || all {
-        let w = base
-            .fold(|| 0, |acc, word| acc + word.split(|b| *b == b' ').count())
-            .reduce(|| 0, |acc, count| acc + count);
-        print!("{} ", w);
-    }
-}
-fn non_parallel(args: &Args, map: &[u8]) {
-    let all = !args.lines && !args.words && !args.chars;
-    let base = map.split_inclusive(|b| *b == b'\n');
-    if args.lines || all {
-        print!("{} ", base.clone().count());
-    }
-    if args.words || all {
-        let w = base.fold(0, |acc, word| acc + word.split(|b| *b == b' ').count());
-        print!("{} ", w);
-    }
-}
 
+fn count(args: &Args, map: &[u8], mode: &Mode) {
+    match mode {
+        Mode::NonParallel => {
+            let base = map.split_inclusive(|b| *b == b'\n');
+            let all = !args.lines && !args.words && !args.chars;
+            if args.lines || all {
+                print!("{} ", base.clone().count());
+            }
+            if args.words || all {
+                let w: usize = base.map(|word| word.split(|b| *b == b' ').count()).sum();
+                print!("{w} ");
+            }
+        }
+        Mode::Parallel => {
+            let base = map.par_split_inclusive(|b| *b == b'\n');
+            let all = !args.lines && !args.words && !args.chars;
+            if args.lines || all {
+                print!("{} ", base.clone().count());
+            }
+            if args.words || all {
+                let w: usize = base.map(|word| word.split(|b| *b == b' ').count()).sum();
+                print!("{w} ");
+            }
+        }
+    }
+}
